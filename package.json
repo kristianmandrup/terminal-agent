@@ -1,17 +1,18 @@
 {
   "name": "@gjuchault/typescript-service-starter",
-  "version": "0.0.0-development",
-  "description": "Yet another typescript service starter template",
+  "version": "0.0.1",
+  "description": "Terminal agent for AI agent systems",
   "keywords": [
-    "typescript",
-    "service",
-    "starter",
-    "template"
+    "terminal",
+    "agent",
+    "ai",
+    "gpt",
+    "automation"
   ],
-  "homepage": "https://github.com/gjuchault/typescript-service-starter",
-  "bugs": "https://github.com/gjuchault/typescript-service-starter/issues",
-  "author": "Gabriel Juchault <gabriel.juchault@gmail.com>",
-  "repository": "gjuchault/typescript-service-starter",
+  "homepage": "https://github.com/kristianmandrup/terminal-agent",
+  "bugs": "https://github.com/kristianmandrup/terminal-agent/issues",
+  "author": "Kristian Mandrup <kmandrup@gmail.com>",
+  "repository": "kristianmandrup/terminal-agent",
   "type": "module",
   "exports": "./build/index.js",
   "types": "./build/src/index.d.ts",

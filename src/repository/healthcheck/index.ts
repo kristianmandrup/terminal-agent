@@ -1,8 +1,9 @@
-import { err, ok, Result } from "neverthrow";
+import type { Result } from "neverthrow";
+import { err, ok } from "neverthrow";
 import { sql } from "slonik";
 import { z } from "zod";
 
-import { DependencyStore } from "~/store";
+import type { DependencyStore } from "~/store";
 
 export type GetHealthcheckResult = Result<"healthy", "databaseError">;
 

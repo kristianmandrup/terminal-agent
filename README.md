@@ -1,4 +1,101 @@
-# TypeScript Service Starter
+# Terminal agent for AI agent systems
+
+The terminal agent consists of a simple Fastify backend.
+The backend has an `/execute` POST endpoint, which:
+
+- takes a `command` to be executed in the terminal container
+- takes a `userId` for the user in order to ensure a separate session and container for each user
+- creates a docker container for `automated-terminal` if the user does not already have a container
+- stores the container in a registry, with the `userId` as the key
+- retrieves a container for the user from the registry
+- executes the incoming `command` in the container, making sure to expose `stdin`, `stdout` and `stderr` so they can be captured
+- capture the terminal output as a data stream converted to `utf-8`
+- send back the terminal output in the response
+
+In the near future it will additionally store the datastream in a redis DB, using the `userId` as key, and then set up a pub/sub system to expose the updates to be channeled via SSE events to client subscribers, allowing each user to listen to their private stream of terminal output updates.
+
+## Build automated-terminal Docker image
+
+`docker build --tag 'automated-terminal' Terminal.dockerfile`
+
+This will build and add the `Terminal.dockerfile` to the Docker registry.
+This Dockerfile is based on the `alpine:latest` Docker image, for a minimal linux install, where `bash` is then installed via `apk` to allow for execution of bash terminal commands.
+
+This dockerfile will be created and run as a separate container per user, by the terminal agent.
+The agent will then execute terminal commands in this container, while listening to `stdin` and `stderror` in order to process the terminal output from the commands.
+
+This output will then be sent back as the HTTP response.
+
+## Run via Docker
+
+```bash
+docker build --tag 'terminal_agent' .
+docker run --detach 'terminal_agent'
+```
+
+You can check that the image is in the docker repository via
+
+`docker image ls`
+
+There is also a `docker-compose.yml` file which can be run via
+
+```bash
+docker compose up
+```
+
+## Svelte frontend for REST
+
+```svelte
+<script>
+  let command = '';
+  let output = '';
+
+  async function executeCommand() {
+    const response = await fetch('/execute', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ command })
+    });
+    output = await response.text();
+  }
+</script>
+
+<main>
+  <input type="text" bind:value={command} />
+  <button on:click={executeCommand}>Execute</button>
+  <pre>{output}</pre>
+</main>
+```
+
+## Svelte frontend for SSE
+
+```svelte
+<script>
+  let events = [];
+
+  const eventSource = new EventSource('/execute');
+
+  eventSource.onmessage = (event) => {
+    // Push received data to the events array
+    events = [...events, event.data];
+  };
+
+  // Close EventSource connection when component is destroyed
+  onDestroy(() => {
+    eventSource.close();
+  });
+</script>
+
+<div>
+  {#each events as event}
+    <p>{event}</p>
+  {/each}
+</div>
+```
+
+# Contribute
 
 ![NPM](https://img.shields.io/npm/l/@gjuchault/typescript-service-starter)
 ![NPM](https://img.shields.io/npm/v/@gjuchault/typescript-service-starter)

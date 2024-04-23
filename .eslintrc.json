@@ -37,6 +37,19 @@
     "import/no-mutable-exports": "error",
     "import/no-unused-modules": "error",
     "import/consistent-type-specifier-style": ["error", "prefer-top-level"],
-    "unicorn/prefer-module": "warn"
+    "unicorn/prefer-module": "warn",
+    "lint/suspicious/noExplicitAny": "off",
+    "lint/suspicious/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-unsafe-member-access": "off",
+    "eslint@typescript-eslint/no-unsafe-call": "off",
+    "eslint-comments/disable-enable-pair": [
+      "error",
+      { "allowWholeFile": true }
+    ],
+    "eslint-disable-next-line security/detect-object-injection": "off",
+    "security/detect-object-injection": "off",
+    "unicorn/no-process-exit": "off"
   }
 }

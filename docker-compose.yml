@@ -1,0 +1,5 @@
+services:
+  terminal_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile

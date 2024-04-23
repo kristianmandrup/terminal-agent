@@ -1,8 +1,13 @@
 import { initContract } from "@ts-rest/core";
 import { initServer } from "@ts-rest/fastify";
 
-import { DependencyStore } from "~/store.js";
+import type { DependencyStore } from "~/store.js";
 
+import type { TExecuteCommand } from "./routes/execute/index.js";
+import {
+  executeCommandRoute,
+  executeRouterContract,
+} from "./routes/execute/index.js";
 import {
   getHealthcheckRoute,
   healthcheckRouterContract,
@@ -13,6 +18,7 @@ const s = initServer();
 
 export const contract = {
   ...healthcheckRouterContract,
+  ...executeRouterContract,
 };
 
 export const routerContract = c.router(contract);
@@ -27,5 +33,9 @@ export function createAppRouter({
   return s.router(contract, {
     getHealthcheck: ({ request }) =>
       getHealthcheckRoute({ dependencyStore, requestId: request.id }),
+    executeCommand: ({ request }) => {
+      const body = request.body as TExecuteCommand;
+      return executeCommandRoute(body);
+    },
   });
 }

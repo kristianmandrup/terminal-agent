@@ -1,7 +1,5 @@
-import {
-  createDependencyStore,
-  DependencyStore as SdkDependencyStore,
-} from "@gjuchault/typescript-service-sdk";
+import type { DependencyStore as SdkDependencyStore } from "@gjuchault/typescript-service-sdk";
+import { createDependencyStore } from "@gjuchault/typescript-service-sdk";
 
 import type {
   HealthcheckRepository,

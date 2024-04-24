@@ -125,6 +125,7 @@
     "neverthrow": "^6.1.0",
     "pino": "^8.18.0",
     "redis": "^4.6.13",
+    "redis-connection-pool": "^4.0.1",
     "slonik": "^37.2.0",
     "ts-pattern": "^5.0.6",
     "umzug": "^3.6.1",

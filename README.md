@@ -4,15 +4,38 @@ The terminal agent consists of a simple Fastify backend.
 The backend has an `/execute` POST endpoint, which:
 
 - takes a `command` to be executed in the terminal container
-- takes a `userId` for the user in order to ensure a separate session and container for each user
+- takes a `userId` for the user
+- take a `sessionId` to ensure a separate terminal container for each user session
 - creates a docker container for `automated-terminal` if the user does not already have a container
 - stores the container in a registry, with the `userId` as the key
 - retrieves a container for the user from the registry
-- executes the incoming `command` in the container, making sure to expose `stdin`, `stdout` and `stderr` so they can be captured
-- capture the terminal output as a data stream converted to `utf-8`
+- executes the incoming `command` in the container, making sure to expose `stdout` and `stderr` so they can be captured
+- capture the terminal output for `stdout` and `stderr` as a data stream converted to `utf-8`
 - send back the terminal output in the response
 
-In the near future it will additionally store the datastream in a redis DB, using the `userId` as key, and then set up a pub/sub system to expose the updates to be channeled via SSE events to client subscribers, allowing each user to listen to their private stream of terminal output updates.
+Additionally it:
+
+- stores the datastream in a redis DB, using the `sessionId` as key.
+- sets up a pub/sub channel to expose the terminal streaming updates to be channeled to a client subscriber via Server Side Events (SSE). This allows each user session to listen to their private stream of terminal output updates.
+
+Two keys/channels are used:
+
+- `terminal:${sessionId}:stdout` for terminal output to `stdout`
+- `terminal:${sessionId}:stderr` for terminal output to `stderr`
+
+## API
+
+### ts-rest API
+
+- `POST` to `/execute` takes a `command`, `userId` and `sessionId` in the request body and creates/retrieves a container with a terminal for that `sessionId`, executes the `command` as a bash command and sends the terminal output back to the user, while storing the output in a Redis DB and publishing on a private channel for the userId session.
+
+### Fastify API
+
+- `/terminal/session` returns a unique `sessionId` that can be used to subscribe to terminal output for a given terminal session
+
+- `terminal/listen/:sessionId` to set up a Redis subscriber to channel changes for the session and send these changes via SSE
+
+The fastify API will shortly be converted to ts-rest
 
 ## Build automated-terminal Docker image
 
@@ -43,7 +66,9 @@ There is also a `docker-compose.yml` file which can be run via
 docker compose up
 ```
 
-## Svelte frontend for REST
+The docker compose file creates a container based on the Dockerfile instance and also sets up a Redis DB based on a standard Redis docker image
+
+## Svelte frontend for REST API
 
 ```svelte
 <script>
@@ -71,28 +96,48 @@ docker compose up
 
 ## Svelte frontend for SSE
 
+Sets up an EventSource to listen to SSEs as they are streamed to the client.
+
 ```svelte
 <script>
-  let events = [];
+  let outputs = [];
+  let errors = [];
 
-  const eventSource = new EventSource('/execute');
+  const eventSourceOut = new EventSource(`terminal/stdout/${sessionId}`);
+  const eventSourceErr = new EventSource(`terminal/stderr/${sessionId}`);
 
-  eventSource.onmessage = (event) => {
+  eventSourceOut.onmessage = (event) => {
     // Push received data to the events array
-    events = [...events, event.data];
+    events = [...outputs, event.data];
   };
+
+  eventSourceErr.onmessage = (event) => {
+    // Push received data to the events array
+    errors = [...errors, event.data];
+  };
+
 
   // Close EventSource connection when component is destroyed
   onDestroy(() => {
-    eventSource.close();
+    eventSourceOut.close();
+    eventSourceErr.close();
   });
 </script>
 
-<div>
-  {#each events as event}
-    <p>{event}</p>
+<section>
+  <h3>Terminal output</h3>
+  {#each outputs as output}
+    <p>{output}</p>
   {/each}
-</div>
+</section>
+
+<section>
+  <h3>Terminal errors</h3>
+  {#each errors as error}
+    <p>{error}</p>
+  {/each}
+</section>
+
 ```
 
 # Contribute

@@ -1,5 +1,13 @@
+version: "3.8"
+
 services:
   terminal_agent:
     build:
       context: .
       dockerfile: Dockerfile
+    # Add other configurations for your terminal_agent service
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"

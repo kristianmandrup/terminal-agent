@@ -1,5 +1,18 @@
 # Terminal agent for AI agent systems
 
+Simple terminal agent setup, with a backend API to control executing terminal commands in docker containers per user. Terminal output can be received either by HTTP(S) response or via SSE.
+
+## TOC
+
+- [Design](#design)
+- [API](#api)
+- [Run app via Docker](#run-app-via-docker)
+- [Build terminal Docker image](#build-terminal-docker-image)
+- [Svelte REST API frontend example](#svelte-frontend-for-rest-api)
+- [Svelte SSE frontend example](#svelte-frontend-for-sse)
+
+## Design
+
 The terminal agent consists of a simple [Fastify](https://fastify.dev/) backend server based on [ts-rest](https://ts-rest.com/)
 
 The main endpoint of interest for this backend is the `POST:/execute` endpoint, which:
@@ -35,24 +48,7 @@ In the future these registries will be maintained in redis as well so they are p
 
 - `terminal/listen/:channel/:sessionId` to set up a Redis subscriber to channel changes for the session and terminal output channel (`stdout` or `stderr`) and on each received message, resend via via SSE to be received by the client
 
-## Build automated-terminal Docker image
-
-The application uses [Docker](https://www.docker.com/) to build and run containers for each terminal session and to host and run a [Redis DB](https://redis.io/)
-
-The docker file for running each terminal can be built via:
-
-`docker build --tag 'automated-terminal' Terminal.dockerfile`
-
-This will build and add the `Terminal.dockerfile` to the Docker registry.
-This Dockerfile is based on the `alpine:latest` Docker image, for a minimal linux install, where `bash` is then installed via `apk` to allow for execution of bash terminal commands.
-
-This dockerfile will be created and run as a separate container per user/session, by the terminal agent.
-
-The agent will execute terminal commands in the terminal container, while listening to `stdout` and `stderr` in order to process the terminal output resulting from executing the commands and resending the output via SSE to be received by a client, such as a frontend web application.
-
-The terminal output will also be sent back as a HTTP response.
-
-## Run via Docker
+## Run app via Docker
 
 The main application can be built and run via the main `Dockerfile`, tagged as `terminal_agent`
 
@@ -92,6 +88,23 @@ services:
     ports:
       - "6379:6379"
 ```
+
+## Build terminal Docker image
+
+The application uses [Docker](https://www.docker.com/) to build and run containers for each terminal session and to host and run a [Redis DB](https://redis.io/)
+
+The docker file for running each terminal can be built via:
+
+`docker build --tag 'automated-terminal' Terminal.dockerfile`
+
+This will build and add the `Terminal.dockerfile` to the Docker registry.
+This Dockerfile is based on the `alpine:latest` Docker image, for a minimal linux install, where `bash` is then installed via `apk` to allow for execution of bash terminal commands.
+
+This dockerfile will be created and run as a separate container per user/session, by the terminal agent.
+
+The agent will execute terminal commands in the terminal container, while listening to `stdout` and `stderr` in order to process the terminal output resulting from executing the commands and resending the output via SSE to be received by a client, such as a frontend web application.
+
+The terminal output will also be sent back as a HTTP response.
 
 ## Svelte frontend for REST API
 
@@ -155,15 +168,17 @@ Sets up an EventSource to listen to SSEs as they are streamed to the client.
 
 <section>
   <h3>Terminal output</h3>
-  {#each outputs as output}
-    <p>{output}</p>
+  {#each outputs as stdout}
+    <p class="command">$ {stdout.command}</p>
+    <p class="output">{stdout.output}</p>
   {/each}
 </section>
 
 <section>
   <h3>Terminal errors</h3>
-  {#each errors as error}
-    <p>{error}</p>
+  {#each errors as stderr}
+    <p class="command"> $ {stderr.command}</p>
+    <p class="error">{stderr.error}</p>
   {/each}
 </section>
 

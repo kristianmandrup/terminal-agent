@@ -108,17 +108,27 @@ export async function executeCommandRoute({
     const execStream = await execObject.start(execStartOptions);
 
     try {
-      const data = await handleExecStream(execStream);
+      const output = await handleExecStream(execStream);
+      const data = {
+        command,
+        output,
+      };
+      const stringData = JSON.stringify(data);
       const key = `terminal:${sessionId}:stdout`;
       // Publish a message to the Redis channel associated with the session ID
-      await redisClient.publish(key, JSON.stringify(data));
-      await redisClient.append(key, JSON.stringify(data));
-      return { status: 200, body: data };
+      await redisClient.publish(key, stringData);
+      await redisClient.append(key, stringData);
+      return { status: 200, body: output };
     } catch (error: any) {
       const key = `terminal:${sessionId}:stderr`;
-      await redisClient.publish(key, JSON.stringify(error));
-      await redisClient.append(key, JSON.stringify(error));
-      return { status: 400, body: { message: `Error ${error}` } };
+      const data = {
+        command,
+        error,
+      };
+      const stringData = JSON.stringify(data);
+      await redisClient.publish(key, stringData);
+      await redisClient.append(key, stringData);
+      return { status: 400, body: { message: `${error}` } };
     }
   } catch (error: any) {
     return { status: 500, body: { message: error.message } };

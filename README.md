@@ -1,55 +1,60 @@
 # Terminal agent for AI agent systems
 
-The terminal agent consists of a simple Fastify backend.
-The backend has an `/execute` POST endpoint, which:
+The terminal agent consists of a simple [Fastify](https://fastify.dev/) backend server based on [ts-rest](https://ts-rest.com/)
+
+The main endpoint of interest for this backend is the `POST:/execute` endpoint, which:
 
 - takes a `command` to be executed in the terminal container
-- takes a `userId` for the user
-- take a `sessionId` to ensure a separate terminal container for each user session
+- takes a `userId` for the user to use for optional authorization, customization etc.
+- takes a `sessionId` to ensure a separate terminal container for each user session
 - creates a docker container for `automated-terminal` if the user does not already have a container
-- stores the container in a registry, with the `userId` as the key
-- retrieves a container for the user from the registry
+- stores the container in a user registry, with the `sessionId` as the key
+- retrieves a container for the `sessionId` from the user registry
 - executes the incoming `command` in the container, making sure to expose `stdout` and `stderr` so they can be captured
 - capture the terminal output for `stdout` and `stderr` as a data stream converted to `utf-8`
 - send back the terminal output in the response
 
 Additionally it:
 
-- stores the datastream in a redis DB, using the `sessionId` as key.
-- sets up a pub/sub channel to expose the terminal streaming updates to be channeled to a client subscriber via Server Side Events (SSE). This allows each user session to listen to their private stream of terminal output updates.
+- stores the data stream in a [Redis DB](https://redis.io/), using the `sessionId` as key.
+- sets up a pub/sub channel to expose the terminal streaming updates to be channeled to a client subscriber via [Server Side Events (SSE)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events). This allows each user session to listen to their private stream of terminal output updates.
 
 Two keys/channels are used:
 
 - `terminal:${sessionId}:stdout` for terminal output to `stdout`
 - `terminal:${sessionId}:stderr` for terminal output to `stderr`
 
-## API
+Please note that currently the user registries and container registries are all stored in-memory.
+In the future these registries will be maintained in redis as well so they are persistent across user sessions between application shutdowns, so work can be continued seamlessly later.
 
-### ts-rest API
+## API
 
 - `POST` to `/execute` takes a `command`, `userId` and `sessionId` in the request body and creates/retrieves a container with a terminal for that `sessionId`, executes the `command` as a bash command and sends the terminal output back to the user, while storing the output in a Redis DB and publishing on a private channel for the userId session.
 
-### Fastify API
+- `/terminal/session` creates and returns a unique `sessionId` that can be used to subscribe to terminal output for a given terminal session
 
-- `/terminal/session` returns a unique `sessionId` that can be used to subscribe to terminal output for a given terminal session
-
-- `terminal/listen/:sessionId` to set up a Redis subscriber to channel changes for the session and send these changes via SSE
-
-The fastify API will shortly be converted to ts-rest
+- `terminal/listen/:channel/:sessionId` to set up a Redis subscriber to channel changes for the session and terminal output channel (`stdout` or `stderr`) and on each received message, resend via via SSE to be received by the client
 
 ## Build automated-terminal Docker image
+
+The application uses [Docker](https://www.docker.com/) to build and run containers for each terminal session and to host and run a [Redis DB](https://redis.io/)
+
+The docker file for running each terminal can be built via:
 
 `docker build --tag 'automated-terminal' Terminal.dockerfile`
 
 This will build and add the `Terminal.dockerfile` to the Docker registry.
 This Dockerfile is based on the `alpine:latest` Docker image, for a minimal linux install, where `bash` is then installed via `apk` to allow for execution of bash terminal commands.
 
-This dockerfile will be created and run as a separate container per user, by the terminal agent.
-The agent will then execute terminal commands in this container, while listening to `stdin` and `stderror` in order to process the terminal output from the commands.
+This dockerfile will be created and run as a separate container per user/session, by the terminal agent.
 
-This output will then be sent back as the HTTP response.
+The agent will execute terminal commands in the terminal container, while listening to `stdout` and `stderr` in order to process the terminal output resulting from executing the commands and resending the output via SSE to be received by a client, such as a frontend web application.
+
+The terminal output will also be sent back as a HTTP response.
 
 ## Run via Docker
+
+The main application can be built and run via the main `Dockerfile`, tagged as `terminal_agent`
 
 ```bash
 docker build --tag 'terminal_agent' .
@@ -60,15 +65,37 @@ You can check that the image is in the docker repository via
 
 `docker image ls`
 
-There is also a `docker-compose.yml` file which can be run via
+The `docker-compose.yml` contains a configuration which instantiates
+
+- the `terminal_agent` container that runs the main application
+- a Redis DB used by the `terminal_agent` for storage and pub/sub of terminal output
+
+The docker compose file can be run via:
 
 ```bash
 docker compose up
 ```
 
-The docker compose file creates a container based on the Dockerfile instance and also sets up a Redis DB based on a standard Redis docker image
+The docker compose file creates a container based on the `terminal_agent` image (via the `Dockerfile`) and sets up a Redis DB based on the standard Redis docker image `redis:latest`.
+Currently the Redis DB is hardcoded to expose redis on the default Redis port `6379`.
+
+```dockerfile
+services:
+  terminal_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Add other configurations for your terminal_agent service
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+```
 
 ## Svelte frontend for REST API
+
+The following is a simple Svelte frontend example demonstrating how to leverage the HTTP REST API to execute commands and receive terminal output via a request/response data flow.
 
 ```svelte
 <script>
@@ -95,6 +122,8 @@ The docker compose file creates a container based on the Dockerfile instance and
 ```
 
 ## Svelte frontend for SSE
+
+The following is a simple Svelte frontend example demonstrating how to leverage the HTTP REST API to execute commands and receive terminal output as asynchronous Server Side Events (SSE) via `EventSource`.
 
 Sets up an EventSource to listen to SSEs as they are streamed to the client.
 

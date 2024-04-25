@@ -21,6 +21,8 @@ export const contract = {
   ...executeRouterContract,
 };
 
+export const userSessions = new Set<string>([]);
+
 export const routerContract = c.router(contract);
 
 export type AppRouter = ReturnType<typeof createAppRouter>;

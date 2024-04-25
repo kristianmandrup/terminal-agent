@@ -7,9 +7,9 @@ import { initContract } from "@ts-rest/core";
 import Dockerode from "dockerode";
 import { z } from "zod";
 
-import { userSessions } from "~/presentation/fastify";
 import { redisClient } from "~/presentation/redis";
 
+import { userSessions } from "../..";
 import { handleExecStream } from "./stream-handler";
 
 // import { redisPool } from "~/presentation/redis";
@@ -43,7 +43,13 @@ export const executeRouterContract = c.router({
   },
 });
 
-const userContainers: Record<string, string> = {};
+export type ContainerId = string;
+
+export type UserRegistry = {
+  [key: string]: ContainerId;
+};
+
+const userContainers: Record<string, UserRegistry> = {};
 
 export type TExecuteCommand = {
   userId: string;
@@ -65,7 +71,13 @@ export async function executeCommandRoute({
     console.log(`Retrieving container for ${userId} for session ${sessionId}`);
 
     const docker = new Dockerode();
-    let containerId = userContainers[sessionId];
+    let userRegistry = userContainers[userId];
+    if (!userRegistry) {
+      userRegistry = {};
+      userContainers[userId] = userRegistry;
+    }
+    let containerId = userRegistry[sessionId];
+
     if (!containerId) {
       const container = await docker.createContainer({
         Image: "automated-terminal",
@@ -76,7 +88,7 @@ export async function executeCommandRoute({
         Cmd: ["/bin/bash"], // or any other default command
       });
       containerId = container.id;
-      userContainers[sessionId] = containerId;
+      userContainers[userId][sessionId] = containerId;
     }
 
     const container = docker.getContainer(containerId);

@@ -184,6 +184,17 @@ Sets up an EventSource to listen to SSEs as they are streamed to the client.
 
 ```
 
+## Notes on terminal/bash sessions and containers
+
+Note that it's also possible to run and control multiple terminal/bash sessions within the same Docker container. Here's a general approach:
+
+- **Multiple Processes**: Docker containers can run multiple processes simultaneously. However, it's generally recommended to have a single process per container for simplicity and better container management. But if you need to run multiple processes, you can use tools like `supervisord` to manage them.
+- **Multiplexing**: You can use tools like `tmux` or `screen` within your container to manage multiple terminal sessions. These tools allow you to create multiple virtual terminal sessions within a single terminal window or container.
+- **Docker Exec**: You can use Docker's `docker exec` command to execute commands within a running container. You can start additional bash sessions using `docker exec -it <container_id> /bin/bash` to enter an interactive bash session within the container.
+- **Custom Solution**: Alternatively, you can develop a custom solution within your container to manage multiple terminal sessions. This could involve creating a simple server-client architecture where the server manages multiple terminal sessions and clients interact with them.
+
+Keep in mind that running multiple processes or managing multiple terminal sessions within a container may increase complexity and resource usage. Make sure to design your solution carefully based on your specific requirements and constraints.
+
 # Contribute
 
 ![NPM](https://img.shields.io/npm/l/@gjuchault/typescript-service-starter)

@@ -1,5 +1,11 @@
-import { ChatCompletion } from "openai/resources/index.mjs";
+import {
+  ChatCompletion,
+  ChatCompletionMessage,
+} from "openai/resources/index.mjs";
 import { ChatMessage, OpenAIClient } from "openai-fetch";
+
+import { Action } from "../action";
+import { IActionHandler } from ".";
 
 export interface IAIAdapter {
   notifyAi(message: string): Promise<ChatCompletion.Choice>;
@@ -11,9 +17,11 @@ export class OpenAIAdapter implements IAIAdapter {
   messages: ChatMessage[] = [];
   client: OpenAIClient;
   tools: any[] = [];
+  main: IActionHandler;
 
-  constructor() {
+  constructor(main: IActionHandler) {
     this.client = new OpenAIClient({ apiKey: process.env.OPENAI_API_KEY });
+    this.main = main;
   }
 
   setTools(tools: any) {
@@ -71,10 +79,20 @@ export class OpenAIAdapter implements IAIAdapter {
     return choice.message;
   }
 
+  async handleMessage(message: ChatCompletionMessage) {
+    if (!message.tool_calls) return;
+    const toolCall = message.tool_calls[0];
+    if (!toolCall) return;
+    const action = Action.createFrom(toolCall.function);
+    await this.main.handle(action);
+  }
+
   async getChatCompletion() {
     const response = await this.getAIResponse();
     const choice = this.parseResponseContent(response);
-    this.addSystemMessage(choice.message.content);
+    const message = this.getMessage(choice);
+    await this.handleMessage(message);
+    this.addSystemMessage(message.content);
     return choice;
   }
 }

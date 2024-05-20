@@ -148,6 +148,19 @@ import { execute, definitions } from "terminal-agent/services";
 
 You can find some experimental utilities for working with the Functions/Tools API of ChatGPT in `src/ai/openapi`
 
+```ts
+import { OpenAIAdapter } from "terminal-agent";
+import { execute, definitions } from "terminal-agent/services";
+const mainHandler = new MainHandler();
+mainHandler.register("execute", execute);
+const aiAdapter = new OpenAIAdapter(mainHandler);
+aiAdapter.addTool(definitions.execute);
+
+// send message to AI
+await aiAdapter.notifyAi(message);
+// response may then be a tool/function call which will trigger execution of a terminal command
+```
+
 ## Svelte frontend for REST API
 
 The following is a simple Svelte frontend example demonstrating how to leverage the HTTP REST API to execute commands and receive terminal output via a request/response data flow.

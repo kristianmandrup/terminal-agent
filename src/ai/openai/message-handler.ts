@@ -14,7 +14,7 @@ export interface AIMessage {
 }
 
 export interface IActionHandler {
-  handle(action: Action): void;
+  handle(action: Action): Promise<void>;
 }
 
 export class OpenAIMessageHandler {
@@ -28,20 +28,20 @@ export class OpenAIMessageHandler {
     return (message as AIMessage).tool_calls?.map((tc) => tc.function);
   }
 
-  handleFunction(function_: IFunctionCall) {
+  async handleFunction(function_: IFunctionCall) {
     const action = Action.createFrom(function_);
-    this.handle(action);
+    await this.handle(action);
   }
 
-  handle(action: Action) {
-    this.main.handle(action);
+  async handle(action: Action) {
+    await this.main.handle(action);
   }
 
-  handleMessage(message: any) {
+  async handleMessage(message: any) {
     const functions = this.getFunctionsFromMessage(message);
     if (!functions) return;
     for (const function_ of functions) {
-      this.handleFunction(function_);
+      await this.handleFunction(function_);
     }
   }
 }

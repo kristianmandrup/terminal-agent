@@ -141,10 +141,12 @@ The terminal output will also be sent back as a HTTP response.
 You can also use the functionality as a service, such as via a Functions or Tools API for a Large Language Model (LLM).
 
 ```ts
-import { execute, definition } from "terminal-agent/services";
+import { execute, definitions } from "terminal-agent/services";
 // add definition to your LLM via Tools API or similar
 // when receiving an LLM response that is a tools/function call, extract the arguments and call execute with the arguments.
 ```
+
+You can find some experimental utilities for working with the Functions/Tools API of ChatGPT in `src/ai/openapi`
 
 ## Svelte frontend for REST API
 

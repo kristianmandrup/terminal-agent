@@ -152,7 +152,7 @@ You can find some experimental utilities for working with the Functions/Tools AP
 import { OpenAIAdapter } from "terminal-agent";
 import { execute, definitions } from "terminal-agent/services";
 const mainHandler = new MainHandler();
-mainHandler.register("execute", execute);
+mainHandler.register(definitions.execute.name, execute);
 const aiAdapter = new OpenAIAdapter(mainHandler);
 aiAdapter.addTool(definitions.execute);
 

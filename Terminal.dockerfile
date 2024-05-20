@@ -4,8 +4,18 @@ FROM alpine:latest
 # Set the working directory
 WORKDIR /app
 
-# Install any required packages
-RUN apk add --no-cache bash
+# Define build arguments
+ARG GIT_USER_NAME
+ARG GIT_USER_EMAIL
+
+# Install required packages, including Git
+RUN apk add --no-cache bash git
+
+# Configure Git using environment variables
+RUN git config --global user.name "$GIT_USER_NAME" \
+    && git config --global user.email "$GIT_USER_EMAIL"
+
+# You can add more configuration or commands here if needed
 
 # Copy any additional files or scripts required
 # COPY script.sh /app/script.sh

@@ -75,6 +75,8 @@ docker compose up
 The docker compose file creates a container based on the `terminal_agent` image (via the `Dockerfile`) and sets up a Redis DB based on the standard Redis docker image `redis:latest`.
 Currently the Redis DB is hardcoded to expose redis on the default Redis port `6379`.
 
+The web app is exposed on port `3000` by default, so if run locally, is available as `localhost:3000`
+
 ```dockerfile
 services:
   terminal_agent:
@@ -100,6 +102,33 @@ The docker file for running each terminal can be built via:
 This will build and add the `Terminal.dockerfile` to the Docker registry.
 This Dockerfile is based on the `alpine:latest` Docker image, for a minimal linux install, where `bash` is then installed via `apk` to allow for execution of bash terminal commands.
 
+The Terminal dockerfile will install `bash` and `git` and configure git for the user using build variables `GIT_USER_NAME` and `GIT_USER_EMAIL`
+
+```bash
+# Use Alpine Linux as the base image
+FROM alpine:latest
+
+# Set the working directory
+WORKDIR /app
+
+# Define build arguments
+ARG GIT_USER_NAME
+ARG GIT_USER_EMAIL
+
+# Install required packages, including Git
+RUN apk add --no-cache bash git
+
+# Configure Git using environment variables
+RUN git config --global user.name "$GIT_USER_NAME" \
+    && git config --global user.email "$GIT_USER_EMAIL"
+```
+
+You can experiment with the Terminal dockerfile locally bu building as follows:
+
+```bash
+docker build --build-arg GIT_USER_NAME="Your Name" --build-arg GIT_USER_EMAIL="youremail@example.com" -t your-image-name .
+```
+
 This dockerfile will be created and run as a separate container per user/session, by the terminal agent.
 
 The agent will execute terminal commands in the terminal container, while listening to `stdout` and `stderr` in order to process the terminal output resulting from executing the commands and resending the output via SSE to be received by a client, such as a frontend web application.
@@ -116,7 +145,7 @@ The following is a simple Svelte frontend example demonstrating how to leverage 
   let output = '';
 
   async function executeCommand() {
-    const response = await fetch('/execute', {
+    const response = await fetch('localhost:3000/execute', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -145,8 +174,8 @@ Sets up an EventSource to listen to SSEs as they are streamed to the client.
   let outputs = [];
   let errors = [];
 
-  const eventSourceOut = new EventSource(`terminal/stdout/${sessionId}`);
-  const eventSourceErr = new EventSource(`terminal/stderr/${sessionId}`);
+  const eventSourceOut = new EventSource(`localhost:3000/terminal/stdout/${sessionId}`);
+  const eventSourceErr = new EventSource(`localhost:3000/terminal/stderr/${sessionId}`);
 
   eventSourceOut.onmessage = (event) => {
     // Push received data to the events array

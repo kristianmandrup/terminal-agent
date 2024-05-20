@@ -1,15 +1,16 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
+import path from "node:path";
+
 import type {
   ServerInferResponseBody,
   ServerInferResponses,
 } from "@ts-rest/core";
 import { initContract } from "@ts-rest/core";
-import Dockerode from "dockerode";
 import { z } from "zod";
 
 import { redisClient } from "~/presentation/redis";
 
 import { userSessions } from "../..";
+import { ContainerConfig, DockerContainerManager } from "./container-manager";
 import { handleExecStream } from "./stream-handler";
 
 // import { redisPool } from "~/presentation/redis";
@@ -35,7 +36,10 @@ export const executeRouterContract = c.router({
       }),
     },
     body: z.object({
-      userId: z.string(),
+      user: z.object({
+        id: z.string(),
+        email: z.string(),
+      }),
       sessionId: z.string(),
       command: z.string(),
     }),
@@ -49,66 +53,38 @@ export type UserRegistry = {
   [key: string]: ContainerId;
 };
 
-const userContainers: Record<string, UserRegistry> = {};
-
 export type TExecuteCommand = {
-  userId: string;
+  user: {
+    id: string;
+    email: string;
+  };
   sessionId: string;
   command: string;
 };
 
-export async function executeCommandRoute({
-  command,
-  userId,
-  sessionId,
-}: TExecuteCommand): Promise<RouterExecuteCommandResult> {
+export async function executeCommandRoute(
+  cmd: TExecuteCommand
+): Promise<RouterExecuteCommandResult> {
   try {
+    const { command, user, sessionId } = cmd;
     if (!userSessions.has(sessionId)) {
       return { status: 400, body: { message: "Invalid sessionId" } };
     }
-
-    // We can use the user for auth, in terms of what container the user gets and what they are permitted to do
-    console.log(`Retrieving container for ${userId} for session ${sessionId}`);
-
-    const docker = new Dockerode();
-    let userRegistry = userContainers[userId];
-    if (!userRegistry) {
-      userRegistry = {};
-      userContainers[userId] = userRegistry;
-    }
-    let containerId = userRegistry[sessionId];
-
-    if (!containerId) {
-      const container = await docker.createContainer({
-        Image: "automated-terminal",
-        AttachStdin: true,
-        AttachStdout: true,
-        AttachStderr: true,
-        Tty: true,
-        Cmd: ["/bin/bash"], // or any other default command
-      });
-      containerId = container.id;
-      userContainers[userId][sessionId] = containerId;
-    }
-
-    const container = docker.getContainer(containerId);
-    const execOptions = {
-      Cmd: ["sh", "-c", command],
-      AttachStdout: true,
-      AttachStderr: true,
+    const config: ContainerConfig = {
+      imageName: "automated-terminal",
+      buildArgs: {
+        GIT_USER_NAME: user.id,
+        GIT_USER_EMAIL: user.email,
+      },
+      dockerfileDir: path.resolve("./path-to-your-dockerfile"),
     };
-    const execObject = await container.exec(execOptions);
 
-    // Start the execution with proper options
-    const execStartOptions = {
-      hijack: true,
-      stdin: false,
-      Tty: true,
-    };
-    const execStream = await execObject.start(execStartOptions);
+    const manager = new DockerContainerManager(config);
+    await manager.buildContainer(user.id, sessionId);
 
     try {
-      const output = await handleExecStream(execStream);
+      const stream = await manager.executeCommand(user.id, sessionId, command);
+      const output = await handleExecStream(stream);
       const data = {
         command,
         output,

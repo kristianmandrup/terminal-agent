@@ -18,7 +18,7 @@ The terminal agent consists of a simple [Fastify](https://fastify.dev/) backend 
 The main endpoint of interest for this backend is the `POST:/execute` endpoint, which:
 
 - takes a `command` to be executed in the terminal container
-- takes a `userId` for the user to use for optional authorization, customization etc.
+- takes a `user` object with `id` and `email`. This is used to configure `git` for the terminal image but can also be used for additional authorization, customization etc.
 - takes a `sessionId` to ensure a separate terminal container for each user session
 - creates a docker container for `automated-terminal` if the user does not already have a container
 - stores the container in a user registry, with the `sessionId` as the key

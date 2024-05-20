@@ -1,7 +1,8 @@
 import { initContract, ServerInferResponses } from "@ts-rest/core";
 import { z } from "zod";
 
-import { userSessions } from "../..";
+import { userSessions } from "~/domain";
+
 import { generateSessionId } from "./generator";
 
 const c = initContract();

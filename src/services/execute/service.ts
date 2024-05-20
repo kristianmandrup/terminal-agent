@@ -1,13 +1,32 @@
 import path from "node:path";
 
+import { userSessions } from "~/domain";
+import { generateSessionId } from "~/presentation/http/routes/session/generator";
 import { redisClient } from "~/presentation/redis";
 
-import { TExecuteCommand } from ".";
 import { ContainerConfig, DockerContainerManager } from "./container-manager";
 import { handleExecStream } from "./stream-handler";
 
+export type ContainerId = string;
+
+export type UserRegistry = {
+  [key: string]: ContainerId;
+};
+
+export type TExecuteCommand = {
+  user: {
+    id: string;
+    email: string;
+  };
+  sessionId: string;
+  command: string;
+};
+
 export const execute = async (arguments_: TExecuteCommand) => {
-  const { command, user, sessionId } = arguments_;
+  const { command, user } = arguments_;
+  const sessionId = arguments_.sessionId || generateSessionId();
+  userSessions.add(sessionId);
+
   const config: ContainerConfig = {
     imageName: "automated-terminal",
     buildArgs: {

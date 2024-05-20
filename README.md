@@ -8,6 +8,7 @@ Simple terminal agent setup, with a backend API to control executing terminal co
 - [API](#api)
 - [Run app via Docker](#run-app-via-docker)
 - [Build terminal Docker image](#build-terminal-docker-image)
+- [Use as a service](#use-as-a-service)
 - [Svelte REST API frontend example](#svelte-frontend-for-rest-api)
 - [Svelte SSE frontend example](#svelte-frontend-for-sse)
 
@@ -134,6 +135,16 @@ This dockerfile will be created and run as a separate container per user/session
 The agent will execute terminal commands in the terminal container, while listening to `stdout` and `stderr` in order to process the terminal output resulting from executing the commands and resending the output via SSE to be received by a client, such as a frontend web application.
 
 The terminal output will also be sent back as a HTTP response.
+
+## Use as a service
+
+You can also use the functionality as a service, such as via a Functions or Tools API for a Large Language Model (LLM).
+
+```ts
+import { execute, definition } from "terminal-agent/services";
+// add definition to your LLM via Tools API or similar
+// when receiving an LLM response that is a tools/function call, extract the arguments and call execute with the arguments.
+```
 
 ## Svelte frontend for REST API
 

@@ -1,9 +1,9 @@
 import { initContract } from "@ts-rest/core";
 import { initServer } from "@ts-rest/fastify";
 
+import { TExecuteCommand } from "~/services/execute/service.js";
 import type { DependencyStore } from "~/store.js";
 
-import type { TExecuteCommand } from "./routes/execute/index.js";
 import {
   executeCommandRoute,
   executeRouterContract,
@@ -20,8 +20,6 @@ export const contract = {
   ...healthcheckRouterContract,
   ...executeRouterContract,
 };
-
-export const userSessions = new Set<string>([]);
 
 export const routerContract = c.router(contract);
 

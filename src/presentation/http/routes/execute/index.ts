@@ -5,8 +5,9 @@ import type {
 import { initContract } from "@ts-rest/core";
 import { z } from "zod";
 
-import { userSessions } from "../..";
-import { execute } from "./service";
+import { userSessions } from "~/domain";
+
+import { execute, TExecuteCommand } from "../../../../services/execute/service";
 
 // import { redisPool } from "~/presentation/redis";
 
@@ -41,21 +42,6 @@ export const executeRouterContract = c.router({
     summary: "Execute a terminal command",
   },
 });
-
-export type ContainerId = string;
-
-export type UserRegistry = {
-  [key: string]: ContainerId;
-};
-
-export type TExecuteCommand = {
-  user: {
-    id: string;
-    email: string;
-  };
-  sessionId: string;
-  command: string;
-};
 
 export async function executeCommandRoute(
   cmd: TExecuteCommand

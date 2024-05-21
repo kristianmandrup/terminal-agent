@@ -5,7 +5,7 @@ import { generateSessionId } from "~/presentation/http/routes/session/generator"
 import { redisClient } from "~/presentation/redis";
 
 import { ContainerConfig, DockerContainerManager } from "./container-manager";
-import { handleExecStream } from "./stream-handler";
+import { ExecStreamHandler } from "./stream-handler";
 
 export type ContainerId = string;
 
@@ -34,6 +34,7 @@ export const execute = async (arguments_: TExecuteCommand) => {
       GIT_USER_NAME: user.id,
       GIT_USER_EMAIL: user.email,
     },
+    terminalType: "zsh",
     dockerfileDir: path.resolve("./Terminal.dockerfile"),
   };
 
@@ -47,7 +48,8 @@ export const execute = async (arguments_: TExecuteCommand) => {
       command,
       newTerminalSession
     );
-    const output = await handleExecStream(stream);
+    const execStreamHandler = new ExecStreamHandler();
+    const output = await execStreamHandler.handle(stream);
     const data = {
       command,
       output,

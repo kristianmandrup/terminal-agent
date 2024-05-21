@@ -103,7 +103,9 @@ The docker file for running each terminal can be built via:
 This will build and add the `Terminal.dockerfile` to the Docker registry.
 This Dockerfile is based on the `alpine:latest` Docker image, for a minimal linux install, where `bash` is then installed via `apk` to allow for execution of bash terminal commands.
 
-The Terminal dockerfile will install `bash` and `git` and configure git for the user using build variables `GIT_USER_NAME` and `GIT_USER_EMAIL`
+The Terminal dockerfile will install `bash` and `git` and configure git for the user using build variables `GIT_USER_NAME` and `GIT_USER_EMAIL`.
+It will also install and set up `zsh` as the default terminal and install and configure agnoster theme and the FiraMono powerline font so that terminal output is formatted nicely.
+The color coded terminal output can be mapped and sent to a web client as html using the [ansi_up](https://www.npmjs.com/package/ansi_up) library
 
 ```bash
 # Use Alpine Linux as the base image
@@ -117,11 +119,40 @@ ARG GIT_USER_NAME
 ARG GIT_USER_EMAIL
 
 # Install required packages, including Git
-RUN apk add --no-cache bash git
+RUN apk add --no-cache bash git zsh curl fontconfig
 
 # Configure Git using environment variables
 RUN git config --global user.name "$GIT_USER_NAME" \
     && git config --global user.email "$GIT_USER_EMAIL"
+
+# Install Powerline fonts
+RUN git clone https://github.com/powerline/fonts.git --depth=1 && \
+    cd fonts && \
+    ./install.sh && \
+    cd .. && \
+    rm -rf fonts
+
+# Install oh-my-zsh
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" || true
+
+# Set zsh as the default shell
+RUN sed -i -e "s/bin\/ash/bin\/zsh/" /etc/passwd
+
+# Configure oh-my-zsh with Agnoster theme
+RUN sed -i -e "s/robbyrussell/agnoster/" ~/.zshrc
+
+# Install FiraMono font (Powerline version)
+RUN mkdir -p /usr/share/fonts/FiraMono && \
+    curl -L https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.0/FiraMono.zip -o FiraMono.zip && \
+    unzip FiraMono.zip -d /usr/share/fonts/FiraMono && \
+    rm FiraMono.zip && \
+    fc-cache -fv
+
+# Ensure the terminal uses FiraMono for the correct display of the theme
+# You might need to do this on the host terminal settings
+
+# Install any additional required packages
+RUN apk add --no-cache nodejs npm
 ```
 
 You can experiment with the Terminal dockerfile locally bu building as follows:
@@ -237,6 +268,9 @@ Sets up an EventSource to listen to SSEs as they are streamed to the client.
   {/each}
 </section>
 
+  <style>
+    .output, .command { font-family: 'Fira Mono', monospace; }
+  </style>
 ```
 
 ## Notes on terminal/bash sessions and containers

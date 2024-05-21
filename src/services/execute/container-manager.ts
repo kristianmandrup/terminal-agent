@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Duplex } from "node:stream";
 
+import { AnsiUp } from "ansi_up";
 import Dockerode, { ExecStartOptions } from "dockerode";
 import { config } from "dotenv";
 import { pack } from "tar-fs";
@@ -16,6 +17,8 @@ export interface ContainerConfig {
   imageName: string;
   buildArgs: BuildArguments;
   dockerfileDir: string;
+  terminalType: "bash" | "zsh";
+  defaultCommands?: string[];
   socketPath?: string;
 }
 
@@ -24,7 +27,10 @@ export class DockerContainerManager {
   private imageName: string;
   private buildArgs: BuildArguments;
   private dockerfileDir: string;
+  private defaultCommands = ["/bin/bash"];
+  private terminalType = "bash";
   private userContainers: Record<string, Record<string, string>> = {};
+  private ansiUp = new AnsiUp();
 
   private startOptions = {
     command: { hijack: true, stdin: true },
@@ -34,6 +40,8 @@ export class DockerContainerManager {
   constructor(config: ContainerConfig) {
     this.imageName = config.imageName;
     this.buildArgs = config.buildArgs;
+    this.defaultCommands = config.defaultCommands || this.defaultCommands;
+    this.terminalType = config.terminalType || this.terminalType;
     this.dockerfileDir = config.dockerfileDir;
     const socketPath =
       config.socketPath ||
@@ -75,7 +83,7 @@ export class DockerContainerManager {
       AttachStdout: true,
       AttachStderr: true,
       Tty: true,
-      Cmd: ["/bin/bash"], // or any other default command
+      Cmd: this.defaultCommands, // or any other default command
     });
     this.userContainers[userId][sessionId] = container.id;
     return container.id;
@@ -108,6 +116,12 @@ export class DockerContainerManager {
     return await this.executeCommand(userId, command, sessionId, true);
   }
 
+  protected createExecCommands(command: string) {
+    return this.terminalType === "bash"
+      ? ["sh", "-c", command]
+      : ["zsh", "-c", command];
+  }
+
   protected async getExecObject(
     userId: string,
     sessionId: string,
@@ -115,7 +129,7 @@ export class DockerContainerManager {
   ) {
     const container = await this.getOrCreateContainer(userId, sessionId);
     const execOptions = {
-      Cmd: ["sh", "-c", command],
+      Cmd: this.createExecCommands(command),
       AttachStdout: true,
       AttachStderr: true,
       Tty: true,
@@ -159,7 +173,8 @@ export class DockerContainerManager {
         });
 
         stream.on("end", () => {
-          resolve(output);
+          const htmlOutput = this.ansiUp.ansi_to_html(output);
+          resolve(htmlOutput);
         });
 
         stream.on("error", (error) => {

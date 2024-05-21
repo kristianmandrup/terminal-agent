@@ -113,6 +113,7 @@
     "@ts-rest/core": "^3.44.1",
     "@ts-rest/fastify": "^3.33.0",
     "@ts-rest/open-api": "^3.33.0",
+    "ansi_up": "^6.0.2",
     "bullmq": "^5.1.9",
     "dockerode": "^4.0.2",
     "dockerode-ts": "^0.3.2",

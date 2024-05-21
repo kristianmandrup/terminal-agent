@@ -183,6 +183,14 @@ The agent will execute terminal commands in the terminal container, while listen
 
 The terminal output will also be sent back as a HTTP response and will ensure ANSI escape characters for color encodings etc. will be mapped to equivalents in HTML (if enabled, which is the default)
 
+### Quickstart docker
+
+Simply run
+
+```bash
+npm run docker:start
+```
+
 ## Use as a service
 
 You can use the terminal agent without the HTTP server as an independent service, such as via a Functions or Tools API for a Large Language Model (LLM).

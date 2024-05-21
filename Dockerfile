@@ -4,7 +4,7 @@ FROM base as builder
 
 WORKDIR /app
 
-COPY scripts/ /app/scripts
+COPY Terminal.dockerfile /app/
 COPY src/ /app/src
 COPY package.json \
   package-lock.json \

@@ -104,7 +104,7 @@ This will build and add the `Terminal.dockerfile` to the Docker registry.
 This Dockerfile is based on the `alpine:latest` Docker image, for a minimal linux install, where `bash` is then installed via `apk` to allow for execution of bash terminal commands.
 
 The Terminal dockerfile will install `bash` and `git` and configure git for the user using build variables `GIT_USER_NAME` and `GIT_USER_EMAIL`.
-It will also install and set up `zsh` as the default terminal and install and configure agnoster theme and the FiraMono powerline font so that terminal output is formatted nicely.
+It will also install and set up `zsh` as the default terminal and install and configure the [agnoster theme](https://github.com/agnoster/agnoster-zsh-theme) and the [FiraCode ligature font](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/FiraCode) so that terminal output is formatted nicely.
 The color coded terminal output can be mapped and sent to a web client as html using the [ansi_up](https://www.npmjs.com/package/ansi_up) library
 
 ```bash
@@ -118,6 +118,10 @@ WORKDIR /app
 ARG GIT_USER_NAME
 ARG GIT_USER_EMAIL
 
+# zsh theme arguments
+ARG ZSH_THEME=agnoster
+ARG SOLARIZED_THEME=light
+
 # Install required packages, including Git
 RUN apk add --no-cache bash git zsh curl fontconfig
 
@@ -127,49 +131,61 @@ RUN git config --global user.name "$GIT_USER_NAME" \
 
 # Install Powerline fonts
 RUN git clone https://github.com/powerline/fonts.git --depth=1 && \
-    cd fonts && \
-    ./install.sh && \
-    cd .. && \
+    fonts/install.sh && \
     rm -rf fonts
 
 # Install oh-my-zsh
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" || true
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
 # Set zsh as the default shell
 RUN sed -i -e "s/bin\/ash/bin\/zsh/" /etc/passwd
 
-# Configure oh-my-zsh with Agnoster theme
-RUN sed -i -e "s/robbyrussell/agnoster/" ~/.zshrc
-
-# Install FiraMono font (Powerline version)
-RUN mkdir -p /usr/share/fonts/FiraMono && \
-    curl -L https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.0/FiraMono.zip -o FiraMono.zip && \
-    unzip FiraMono.zip -d /usr/share/fonts/FiraMono && \
-    rm FiraMono.zip && \
+# Install FiraCode font
+RUN mkdir -p /usr/share/fonts/FiraCode && \
+    curl -L -o /usr/share/fonts/FiraCode/FiraCode-Regular.ttf \
+    https://github.com/tonsky/FiraCode/blob/master/distr/ttf/FiraCode-Regular.ttf?raw=true && \
     fc-cache -fv
 
-# Ensure the terminal uses FiraMono for the correct display of the theme
-# You might need to do this on the host terminal settings
+# Install NVM, Node.js LTS, and latest npm
+ENV NVM_DIR /root/.nvm
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash && \
+    . "$NVM_DIR/nvm.sh" && \
+    nvm install --lts --latest-npm && \
+    nvm use --lts && \
+    nvm alias default --lts
 
-# Install any additional required packages
-RUN apk add --no-cache nodejs npm
+# Ensure oh-my-zsh's theme is configured
+RUN sed -i 's/ZSH_THEME=".*"/ZSH_THEME="'$ZSH_THEME'"/' ~/.zshrc
+
+# Configure oh-my-zsh with theme
+RUN echo "ZSH_THEME=\"$ZSH_THEME\"" >> ~/.zshrc
+RUN echo 'POWERLEVEL9K_MODE="nerdfont-complete"' >> ~/.zshrc
+RUN echo 'export TERM="xterm-256color"' >> ~/.zshrc
+
+# Set the theme to solarized light (example configuration, adjust as needed)
+RUN echo "SOLARIZED_THEME=\"$SOLARIZED_THEME\"" >> ~/.zshrc
+
+# Default command to run zsh
+CMD ["zsh"]
 ```
 
 You can experiment with the Terminal dockerfile locally bu building as follows:
 
 ```bash
-docker build --build-arg GIT_USER_NAME="Your Name" --build-arg GIT_USER_EMAIL="youremail@example.com" -t your-image-name .
+docker build --build-arg GIT_USER_NAME="Your Name" --build-arg GIT_USER_EMAIL="youremail@example.com" SOLARIZED_THEME=dark --build-arg ZSH_THEME=robbyrussell -t automated-terminal .
 ```
 
-This dockerfile will be created and run as a separate container per user/session, by the terminal agent.
+This will set the theme to `dark` and ZSH theme to `robbyrussell` in the zsh configuration. If no arguments are provided, it will default to `light` for the theme and `agnoster` for the ZSH theme.
+
+This dockerfile will be created and run as a separate container per user/session by the terminal agent.
 
 The agent will execute terminal commands in the terminal container, while listening to `stdout` and `stderr` in order to process the terminal output resulting from executing the commands and resending the output via SSE to be received by a client, such as a frontend web application.
 
-The terminal output will also be sent back as a HTTP response.
+The terminal output will also be sent back as a HTTP response and will ensure ANSI escape characters for color encodings etc. will be mapped to equivalents in HTML (if enabled, which is the default)
 
 ## Use as a service
 
-You can also use the functionality as a service, such as via a Functions or Tools API for a Large Language Model (LLM).
+You can use the terminal agent without the HTTP server as an independent service, such as via a Functions or Tools API for a Large Language Model (LLM).
 
 ```ts
 import { execute, definitions } from "terminal-agent/services";
@@ -269,7 +285,7 @@ Sets up an EventSource to listen to SSEs as they are streamed to the client.
 </section>
 
   <style>
-    .output, .command { font-family: 'Fira Mono', monospace; }
+    .output, .command { font-family: 'Fira Code', monospace; }
   </style>
 ```
 

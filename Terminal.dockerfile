@@ -17,41 +17,37 @@ RUN git config --global user.name "$GIT_USER_NAME" \
 
 # Install Powerline fonts
 RUN git clone https://github.com/powerline/fonts.git --depth=1 && \
-    cd fonts && \
-    ./install.sh && \
-    cd .. && \
+    fonts/install.sh && \
     rm -rf fonts
 
 # Install oh-my-zsh
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" || true
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
 # Set zsh as the default shell
 RUN sed -i -e "s/bin\/ash/bin\/zsh/" /etc/passwd
 
-# Configure oh-my-zsh with Agnoster theme
-RUN sed -i -e "s/robbyrussell/agnoster/" ~/.zshrc
-
-# Install FiraMono font (Powerline version)
-RUN mkdir -p /usr/share/fonts/FiraMono && \
-    curl -L https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.0/FiraMono.zip -o FiraMono.zip && \
-    unzip FiraMono.zip -d /usr/share/fonts/FiraMono && \
-    rm FiraMono.zip && \
+# Install FiraCode font
+RUN mkdir -p /usr/share/fonts/FiraCode && \
+    curl -L -o /usr/share/fonts/FiraCode/FiraCode-Regular.ttf \
+    https://github.com/tonsky/FiraCode/blob/master/distr/ttf/FiraCode-Regular.ttf?raw=true && \
     fc-cache -fv
 
-# Ensure the terminal uses FiraMono for the correct display of the theme
-# You might need to do this on the host terminal settings
+# Install NVM, Node.js LTS, and latest npm
+ENV NVM_DIR /root/.nvm
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash && \
+    . "$NVM_DIR/nvm.sh" && \
+    nvm install --lts --latest-npm && \
+    nvm use --lts && \
+    nvm alias default --lts
 
-# Install any additional required packages
-RUN apk add --no-cache nodejs npm
+# Configure oh-my-zsh with Agnoster theme
+RUN sed -i -e "s/robbyrussell/agnoster/" ~/.zshrc && \
+    echo 'ZSH_THEME="agnoster"' >> ~/.zshrc && \
+    echo 'POWERLEVEL9K_MODE="nerdfont-complete"' >> ~/.zshrc && \
+    echo 'export TERM="xterm-256color"' >> ~/.zshrc
 
+# Set the theme to solarized light (example configuration, adjust as needed)
+RUN echo 'SOLARIZED_THEME="light"' >> ~/.zshrc
 
-# You can add more configuration or commands here if needed
-
-# Copy any additional files or scripts required
-# COPY script.sh /app/script.sh
-
-# Set the entrypoint
-# ENTRYPOINT ["bash", "/app/script.sh"]
-
-# Set any default command
-# CMD ["echo", "Hello, World!"]
+# Default command to run zsh
+CMD ["zsh"]

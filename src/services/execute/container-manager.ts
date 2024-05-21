@@ -1,4 +1,7 @@
-import Dockerode from "dockerode";
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+import { Duplex } from "node:stream";
+
+import Dockerode, { ExecStartOptions } from "dockerode";
 import { config } from "dotenv";
 import { pack } from "tar-fs";
 
@@ -22,6 +25,11 @@ export class DockerContainerManager {
   private buildArgs: BuildArguments;
   private dockerfileDir: string;
   private userContainers: Record<string, Record<string, string>> = {};
+
+  private startOptions = {
+    command: { hijack: true, stdin: true },
+    terminalSession: { hijack: true, stdin: false, Tty: true },
+  };
 
   constructor(config: ContainerConfig) {
     this.imageName = config.imageName;
@@ -60,27 +68,28 @@ export class DockerContainerManager {
     });
   }
 
-  private async getOrCreateContainer(userId: string, sessionId: string) {
+  protected async createAndSetContainer(userId: string, sessionId: string) {
+    const container = await this.docker.createContainer({
+      Image: this.imageName,
+      AttachStdin: true,
+      AttachStdout: true,
+      AttachStderr: true,
+      Tty: true,
+      Cmd: ["/bin/bash"], // or any other default command
+    });
+    this.userContainers[userId][sessionId] = container.id;
+    return container.id;
+  }
+
+  protected async getOrCreateContainer(userId: string, sessionId: string) {
     let userRegistry = this.userContainers[userId];
     if (!userRegistry) {
       userRegistry = {};
       this.userContainers[userId] = userRegistry;
     }
-
-    let containerId = userRegistry[sessionId];
-    if (!containerId) {
-      const container = await this.docker.createContainer({
-        Image: this.imageName,
-        AttachStdin: true,
-        AttachStdout: true,
-        AttachStderr: true,
-        Tty: true,
-        Cmd: ["/bin/bash"], // or any other default command
-      });
-      containerId = container.id;
-      this.userContainers[userId][sessionId] = containerId;
-    }
-
+    const containerId =
+      userRegistry[sessionId] ||
+      (await this.createAndSetContainer(userId, sessionId));
     return this.docker.getContainer(containerId);
   }
 
@@ -89,7 +98,17 @@ export class DockerContainerManager {
     return this.getOrCreateContainer(userId, sessionId);
   }
 
-  public async executeCommand(
+  // This code structure allows you to easily manage multiple terminal sessions on the same underlying container.
+  // Each session will execute independently but share the same file system and container state.
+  public async createTerminalSession(
+    userId: string,
+    sessionId: string,
+    command: string
+  ) {
+    return await this.executeCommand(userId, command, sessionId, true);
+  }
+
+  protected async getExecObject(
     userId: string,
     sessionId: string,
     command: string
@@ -99,15 +118,54 @@ export class DockerContainerManager {
       Cmd: ["sh", "-c", command],
       AttachStdout: true,
       AttachStderr: true,
-    };
-    const execObject = await container.exec(execOptions);
-
-    // Start the execution with proper options
-    const execStartOptions = {
-      hijack: true,
-      stdin: false,
       Tty: true,
     };
-    return await execObject.start(execStartOptions);
+    return await container.exec(execOptions);
+  }
+
+  public async executeCommand(
+    userId: string,
+    sessionId: string,
+    command: string,
+    terminalSession = false
+  ) {
+    const execObject = await this.getExecObject(userId, sessionId, command);
+    const startOptions = terminalSession
+      ? this.startOptions.terminalSession
+      : this.startOptions.command;
+    return this.execToPromisedStream(execObject, startOptions);
+  }
+
+  protected async execToPromisedStream(
+    execObject: Dockerode.Exec,
+    startOptions: ExecStartOptions
+  ) {
+    return await execObject.start(startOptions);
+  }
+
+  protected async execToPromisedString(
+    execObject: Dockerode.Exec,
+    startOptions: ExecStartOptions
+  ) {
+    return new Promise<string>((resolve, reject) => {
+      execObject.start(startOptions, (error: any, stream?: Duplex) => {
+        if (error) {
+          return reject(error);
+        }
+        if (!stream) return;
+        let output = "";
+        stream.on("data", (chunk: Buffer) => {
+          output += chunk.toString();
+        });
+
+        stream.on("end", () => {
+          resolve(output);
+        });
+
+        stream.on("error", (error) => {
+          reject(error);
+        });
+      });
+    });
   }
 }

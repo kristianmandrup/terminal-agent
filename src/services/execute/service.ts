@@ -20,10 +20,11 @@ export type TExecuteCommand = {
   };
   sessionId: string;
   command: string;
+  newTerminalSession: boolean;
 };
 
 export const execute = async (arguments_: TExecuteCommand) => {
-  const { command, user } = arguments_;
+  const { command, user, newTerminalSession } = arguments_;
   const sessionId = arguments_.sessionId || generateSessionId();
   userSessions.add(sessionId);
 
@@ -33,14 +34,19 @@ export const execute = async (arguments_: TExecuteCommand) => {
       GIT_USER_NAME: user.id,
       GIT_USER_EMAIL: user.email,
     },
-    dockerfileDir: path.resolve("./path-to-your-dockerfile"),
+    dockerfileDir: path.resolve("./Terminal.dockerfile"),
   };
 
   try {
     const manager = new DockerContainerManager(config);
     await manager.buildContainer(user.id, sessionId);
 
-    const stream = await manager.executeCommand(user.id, sessionId, command);
+    const stream = await manager.executeCommand(
+      user.id,
+      sessionId,
+      command,
+      newTerminalSession
+    );
     const output = await handleExecStream(stream);
     const data = {
       command,

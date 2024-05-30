@@ -2,11 +2,16 @@ import { Duplex } from "node:stream";
 
 import { AnsiUp } from "ansi_up";
 
+export type Output = {
+  text?: string;
+  html?: string;
+};
+
 export class ExecStreamHandler {
   ansiUp = new AnsiUp();
 
-  async handle(execStream: Duplex, useHtmlOutput = true): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
+  async handle(execStream: Duplex, useHtmlOutput = true): Promise<Output> {
+    return new Promise<Output>((resolve, reject) => {
       const chunks: Buffer[] = [];
 
       // Listen for 'data' events on the stream and push each chunk into the 'chunks' array
@@ -19,10 +24,10 @@ export class ExecStreamHandler {
         // Concatenate all the chunks into a single buffer
         const buffer = Buffer.concat(chunks);
         // Convert the buffer to a string
-        const data = buffer.toString("utf8");
-        const output = useHtmlOutput ? this.ansiUp.ansi_to_html(data) : data;
+        const text = buffer.toString("utf8");
+        const html = useHtmlOutput ? this.ansiUp.ansi_to_html(text) : text;
         // Resolve the Promise with the data
-        resolve(output);
+        resolve({ text, html });
       });
 
       // Listen for errors on the stream

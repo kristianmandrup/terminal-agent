@@ -260,12 +260,12 @@ Sets up an EventSource to listen to SSEs as they are streamed to the client.
 
   eventSourceOut.onmessage = (event) => {
     // Push received data to the events array
-    events = [...outputs, event.data];
+    events = [...outputs, event.data.html];
   };
 
   eventSourceErr.onmessage = (event) => {
     // Push received data to the events array
-    errors = [...errors, event.data];
+    errors = [...errors, event.data.html];
   };
 
 

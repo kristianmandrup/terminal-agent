@@ -49,6 +49,7 @@ export const execute = async (arguments_: TExecuteCommand) => {
       newTerminalSession
     );
     const execStreamHandler = new ExecStreamHandler();
+    // output contains both text and html
     const output = await execStreamHandler.handle(stream);
     const data = {
       command,
